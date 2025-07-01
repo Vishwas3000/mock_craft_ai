@@ -3,6 +3,7 @@
 import asyncio
 import sys
 import time
+import argparse
 from pathlib import Path
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -17,19 +18,64 @@ from src.core.config import settings
 
 console = Console()
 
-async def validate_llm_integration():
+def parse_arguments():
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser(
+        description="Validate LLM integration for JSON Generator",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python scripts/validate_llm_integration.py                    # Test all providers
+  python scripts/validate_llm_integration.py --openai           # Test only OpenAI
+  python scripts/validate_llm_integration.py --ollama --openai  # Test OpenAI and Ollama
+  python scripts/validate_llm_integration.py --local            # Test only local model
+        """
+    )
+    
+    parser.add_argument(
+        "--openai", 
+        action="store_true", 
+        help="Test OpenAI integration"
+    )
+    parser.add_argument(
+        "--ollama", 
+        action="store_true", 
+        help="Test Ollama integration"
+    )
+    parser.add_argument(
+        "--local", 
+        action="store_true", 
+        help="Test local model integration"
+    )
+    parser.add_argument(
+        "--manager", 
+        action="store_true", 
+        help="Test LLM Manager integration"
+    )
+    parser.add_argument(
+        "--all", 
+        action="store_true", 
+        help="Test all providers (default if no flags specified)"
+    )
+    
+    return parser.parse_args()
+
+async def validate_llm_integration(providers_to_test=None):
     """Main validation function"""
+    if providers_to_test is None:
+        providers_to_test = ["openai", "ollama"]  # Default providers
+    
     console.print(Panel.fit(
-        "[bold blue]LLM Integration Validation[/bold blue]\n"
-        "Testing OpenAI, Ollama, and Local Model connections",
+        f"[bold blue]LLM Integration Validation[/bold blue]\n"
+        f"Testing: {', '.join(providers_to_test).upper()}",
         title="Week 1 Validation"
     ))
     
-    results = {
-        "openai": {"status": "pending", "details": "", "latency": None},
-        "ollama": {"status": "pending", "details": "", "latency": None}
-        # "local": {"status": "pending", "details": "", "latency": None}
-    }
+    results = {}
+    
+    # Initialize results for providers to test
+    for provider in providers_to_test:
+        results[provider] = {"status": "pending", "details": "", "latency": None}
     
     # Test each provider
     with Progress(
@@ -39,26 +85,31 @@ async def validate_llm_integration():
     ) as progress:
         
         # OpenAI Test
-        task = progress.add_task("[cyan]Testing OpenAI connection...", total=1)
-        results["openai"] = await test_openai()
-        progress.update(task, completed=1)
+        if "openai" in providers_to_test:
+            task = progress.add_task("[cyan]Testing OpenAI connection...", total=1)
+            results["openai"] = await test_openai()
+            progress.update(task, completed=1)
         
         # Ollama Test
-        task = progress.add_task("[cyan]Testing Ollama connection...", total=1)
-        results["ollama"] = await test_ollama()
-        progress.update(task, completed=1)
+        if "ollama" in providers_to_test:
+            task = progress.add_task("[cyan]Testing Ollama connection...", total=1)
+            results["ollama"] = await test_ollama()
+            progress.update(task, completed=1)
         
         # Local Model Test
-        # task = progress.add_task("[cyan]Testing Local Model...", total=1)
-        # results["local"] = await test_local_model()
-        # progress.update(task, completed=1)
+        if "local" in providers_to_test:
+            task = progress.add_task("[cyan]Testing Local Model...", total=1)
+            results["local"] = await test_local_model()
+            progress.update(task, completed=1)
     
     # Display results
     display_results(results)
     
-    # Test LLM Manager
-    console.print("\n[bold]Testing LLM Manager Integration...[/bold]")
-    manager_ok = await test_llm_manager()
+    # Test LLM Manager if requested or if testing multiple providers
+    manager_ok = True
+    if "manager" in providers_to_test or len(providers_to_test) > 1:
+        console.print("\n[bold]Testing LLM Manager Integration...[/bold]")
+        manager_ok = await test_llm_manager()
     
     # Final summary
     all_passed = all(r["status"] == "✅ Connected" for r in results.values()) and manager_ok
@@ -138,46 +189,37 @@ async def test_ollama():
             "latency": None
         }
 
-# async def test_local_model():
-    # """Test local model"""
-    # try:
-    #     if not settings.llm.local_model_path:
-    #         return {
-    #             "status": "❌ Not Configured",
-    #             "details": "LOCAL_MODEL_PATH not set in .env",
-    #             "latency": None
-    #         }
+async def test_local_model():
+    """Test local model"""
+    try:
+        if not settings.llm.local_model_path:
+            return {
+                "status": "❌ Not Configured",
+                "details": "LOCAL_MODEL_PATH not set in .env",
+                "latency": None
+            }
         
-    #     model_path = Path(settings.llm.local_model_path)
-    #     if not model_path.exists():
-    #         return {
-    #             "status": "❌ Model Not Found",
-    #             "details": f"File not found: {model_path.name}",
-    #             "latency": None
-    #         }
+        model_path = Path(settings.llm.local_model_path)
+        if not model_path.exists():
+            return {
+                "status": "❌ Model Not Found",
+                "details": f"File not found: {model_path.name}",
+                "latency": None
+            }
         
-    #     from src.core.llm_providers.local_llm import LocalLLM
+        # LocalLLM is not implemented yet
+        return {
+            "status": "❌ Not Implemented",
+            "details": "LocalLLM implementation pending",
+            "latency": None
+        }
         
-    #     start_time = time.time()
-    #     llm = LocalLLM()
-    #     await llm.initialize()
-        
-    #     # Test generation
-    #     response = await llm.generate("Say 'test passed'", max_tokens=10)
-    #     latency = time.time() - start_time
-        
-    #     return {
-    #         "status": "✅ Connected",
-    #         "details": f"Model: {model_path.name} ({llm._get_model_size()})",
-    #         "latency": f"{latency:.2f}s"
-    #     }
-        
-    # except Exception as e:
-    #     return {
-    #         "status": "❌ Failed",
-    #         "details": str(e)[:50] + "...",
-    #         "latency": None
-    #     }
+    except Exception as e:
+        return {
+            "status": "❌ Failed",
+            "details": str(e)[:50] + "...",
+            "latency": None
+        }
 
 async def test_llm_manager():
     """Test the unified LLM manager"""
@@ -224,5 +266,25 @@ def display_results(results):
     console.print(table)
 
 if __name__ == "__main__":
-    exit_code = asyncio.run(validate_llm_integration())
+    args = parse_arguments()
+    
+    # Determine which providers to test
+    providers_to_test = []
+    
+    if args.all or (not args.openai and not args.ollama and not args.local and not args.manager):
+        # Default: test all available providers
+        providers_to_test = ["openai", "ollama"]
+    else:
+        if args.openai:
+            providers_to_test.append("openai")
+        if args.ollama:
+            providers_to_test.append("ollama")
+        if args.local:
+            providers_to_test.append("local")
+        if args.manager:
+            providers_to_test.append("manager")
+    
+    console.print(f"[dim]Testing providers: {', '.join(providers_to_test)}[/dim]\n")
+    
+    exit_code = asyncio.run(validate_llm_integration(providers_to_test))
     sys.exit(exit_code) 
