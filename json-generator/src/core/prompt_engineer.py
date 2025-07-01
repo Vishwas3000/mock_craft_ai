@@ -38,6 +38,7 @@ class PromptEngineer:
         self.example_library = self._load_example_library()
         self.pattern_templates = self._init_pattern_templates()
         self.strategy_templates = self._init_strategy_templates()
+        self.multi_strategy_templates = self._init_multi_strategy_templates()
         
     def _load_example_library(self) -> Dict[str, List[Dict]]:
         """Load library of examples for different domains"""
@@ -163,6 +164,60 @@ Ensure: Valid JSON, diverse values, realistic data"""
         
         return templates
     
+    def _init_multi_strategy_templates(self) -> Dict[str, str]:
+        """Initialize templates for combining multiple strategies"""
+        return {
+            "cot_few_shot": """Let me analyze this step by step.
+
+First, I'll examine the schema and context:
+{cot_analysis}
+
+Here are relevant examples to guide the generation:
+{few_shot_examples}
+
+Now, I'll generate {count} records that follow the pattern:
+{generation_instructions}
+
+Generated data:""",
+            
+            "structured_cot": """I'll generate the data using a structured approach.
+
+## Schema Analysis
+{cot_analysis}
+
+## Field Specifications
+{structured_specs}
+
+## Generation Process
+1. I'll ensure each field matches its specification
+2. I'll maintain consistency across records
+3. I'll use realistic values appropriate for {context}
+
+Generated JSON:""",
+            
+            "few_shot_structured": """Based on these examples:
+{few_shot_examples}
+
+And these field specifications:
+{structured_specs}
+
+I'll generate {count} similar records:""",
+            
+            "all_three": """I'll use a comprehensive approach to generate the data.
+
+## Understanding (Chain of Thought)
+{cot_analysis}
+
+## Examples (Few-Shot Learning)
+{few_shot_examples}
+
+## Specifications (Structured Format)
+{structured_specs}
+
+## Generated Data
+Following all the above guidelines:"""
+        }
+    
     def build_prompt(
         self,
         schema: Dict[str, Any],
@@ -170,14 +225,31 @@ Ensure: Valid JSON, diverse values, realistic data"""
         context: str,
         count: int = 10,
         strategy: PromptStrategy = PromptStrategy.CHAIN_OF_THOUGHT,
-        include_examples: bool = True
+        include_examples: bool = True,
+        use_multi_strategy: bool = False
     ) -> str:
-        """Build optimized prompt for JSON generation"""
+        """Build optimized prompt for JSON generation
+        
+        Args:
+            schema: The JSON schema to generate
+            analysis: Schema analysis results
+            context: Domain context
+            count: Number of records to generate
+            strategy: Single strategy to use (if not multi-strategy)
+            include_examples: Whether to include examples
+            use_multi_strategy: Whether to use multiple strategies
+        """
         
         # Get components
         components = self._analyze_requirements(schema, analysis, context, count)
         
-        # Select and build prompt based on strategy
+        # Check if we should use multi-strategy
+        if use_multi_strategy:
+            return self._build_multi_strategy_prompt(
+                components, schema, analysis, context, count
+            )
+        
+        # Otherwise use single strategy (backward compatible)
         if strategy == PromptStrategy.FEW_SHOT and include_examples:
             return self._build_few_shot_prompt(components, schema, context, count)
         elif strategy == PromptStrategy.CHAIN_OF_THOUGHT:
@@ -488,3 +560,146 @@ Check for:
 4. Value appropriateness
 
 Provide a validation report with any issues found."""
+    
+    def _build_multi_strategy_prompt(
+        self,
+        components: PromptComponents,
+        schema: Dict[str, Any],
+        analysis: SchemaAnalysis,
+        context: str,
+        count: int
+    ) -> str:
+        """Build a prompt using multiple strategies automatically selected"""
+        
+        # Select optimal strategies based on complexity and context
+        strategies = self._select_optimal_strategies(analysis, context, count)
+        
+        # Build strategy components
+        strategy_components = {}
+        
+        if PromptStrategy.CHAIN_OF_THOUGHT in strategies:
+            strategy_components["cot_analysis"] = self._build_cot_analysis_component(
+                analysis, context
+            )
+        
+        if PromptStrategy.FEW_SHOT in strategies:
+            strategy_components["few_shot_examples"] = self._build_few_shot_component(
+                components.examples
+            )
+        
+        if PromptStrategy.STRUCTURED in strategies:
+            strategy_components["structured_specs"] = self._build_structured_component(
+                analysis
+            )
+        
+        # Determine which template to use
+        template_key = self._get_multi_strategy_template_key(strategies)
+        template = self.multi_strategy_templates.get(template_key, self.multi_strategy_templates["all_three"])
+        
+        # Format the template
+        return template.format(
+            context=context,
+            count=count,
+            generation_instructions=f"Generate {count} unique, realistic records for {context}",
+            **strategy_components
+        )
+    
+    def _select_optimal_strategies(
+        self,
+        analysis: SchemaAnalysis,
+        context: str,
+        count: int
+    ) -> List[PromptStrategy]:
+        """Select optimal combination of strategies based on analysis"""
+        strategies = []
+        
+        # Always use Chain-of-Thought for complex schemas
+        if analysis.complexity_score > 0.5:
+            strategies.append(PromptStrategy.CHAIN_OF_THOUGHT)
+        
+        # Use Few-Shot if we have good examples or generating many records
+        if count > 5 or any(domain in context.lower() for domain in self.example_library.keys()):
+            strategies.append(PromptStrategy.FEW_SHOT)
+        
+        # Use Structured for schemas with special patterns or constraints
+        if any(f.pattern_type for f in analysis.fields.values()) or analysis.complexity_score > 0.3:
+            strategies.append(PromptStrategy.STRUCTURED)
+        
+        # Fallback to at least one strategy
+        if not strategies:
+            strategies.append(PromptStrategy.CHAIN_OF_THOUGHT)
+        
+        return strategies
+    
+    def _build_cot_analysis_component(self, analysis: SchemaAnalysis, context: str) -> str:
+        """Build the Chain-of-Thought analysis component"""
+        lines = [
+            f"The schema represents {context} data with {analysis.total_fields} fields.",
+            f"Complexity level: {'High' if analysis.complexity_score > 0.7 else 'Moderate' if analysis.complexity_score > 0.3 else 'Simple'}",
+            ""
+        ]
+        
+        # Add pattern analysis
+        patterns = [(f, fa.pattern_type) for f, fa in analysis.fields.items() if fa.pattern_type]
+        if patterns:
+            lines.append("Key patterns to follow:")
+            for field, pattern in patterns:
+                lines.append(f"- {field}: {pattern.value}")
+            lines.append("")
+        
+        # Add relationship analysis
+        if analysis.relationships:
+            lines.append("Relationships to maintain:")
+            for rel in analysis.relationships:
+                lines.append(f"- {rel[0]} relates to {rel[1]}")
+        
+        return "\n".join(lines)
+    
+    def _build_few_shot_component(self, examples: List[Dict]) -> str:
+        """Build the few-shot examples component"""
+        if not examples:
+            return "No specific examples available, follow the schema structure."
+        
+        lines = []
+        for i, example in enumerate(examples[:2], 1):
+            lines.append(f"Example {i}:")
+            lines.append("```json")
+            lines.append(json.dumps(example, indent=2))
+            lines.append("```")
+            lines.append("")
+        
+        return "\n".join(lines)
+    
+    def _build_structured_component(self, analysis: SchemaAnalysis) -> str:
+        """Build the structured specifications component"""
+        lines = []
+        
+        for field_name, field_analysis in analysis.fields.items():
+            lines.append(f"**{field_name}**:")
+            lines.append(f"  - Type: {field_analysis.data_type.value}")
+            
+            if field_analysis.pattern_type:
+                pattern_desc = self.pattern_templates.get(field_analysis.pattern_type, "custom pattern")
+                lines.append(f"  - Pattern: {pattern_desc}")
+            
+            if field_analysis.constraints.min_value is not None:
+                lines.append(f"  - Min: {field_analysis.constraints.min_value}")
+            if field_analysis.constraints.max_value is not None:
+                lines.append(f"  - Max: {field_analysis.constraints.max_value}")
+            
+            lines.append("")
+        
+        return "\n".join(lines)
+    
+    def _get_multi_strategy_template_key(self, strategies: List[PromptStrategy]) -> str:
+        """Get the appropriate template key for the strategy combination"""
+        strategy_set = set(strategies)
+        
+        if strategy_set == {PromptStrategy.CHAIN_OF_THOUGHT, PromptStrategy.FEW_SHOT}:
+            return "cot_few_shot"
+        elif strategy_set == {PromptStrategy.STRUCTURED, PromptStrategy.CHAIN_OF_THOUGHT}:
+            return "structured_cot"
+        elif strategy_set == {PromptStrategy.FEW_SHOT, PromptStrategy.STRUCTURED}:
+            return "few_shot_structured"
+        else:
+            return "all_three"
