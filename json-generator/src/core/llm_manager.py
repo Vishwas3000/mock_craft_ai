@@ -10,7 +10,7 @@ from rich.table import Table
 from .base_llm import BaseLLM, LLMProvider, GenerationConfig, LLMResponse
 from .llm_providers.openai_llm import OpenAILLM
 from .llm_providers.ollama_llm import OllamaLLM
-from .llm_providers.local_llm import LocalLLM
+# from .llm_providers.local_llm import LocalLLM
 from .config import settings
 
 logger = logging.getLogger(__name__)
@@ -103,14 +103,13 @@ class LLMManager:
             if not settings.llm.local_model_path:
                 logger.warning("Local model path not configured")
                 return False
-            
-            llm = LocalLLM()
-            await llm.initialize()
-            
-            self.models["local"] = llm
-            logger.info("✅ Local model initialized")
-            return True
-            
+            # llm = LocalLLM()
+            # await llm.initialize()
+            # self.models["local"] = llm
+            # logger.info("✅ Local model initialized")
+            # return True
+            logger.warning("LocalLLM is not implemented.")
+            return False
         except Exception as e:
             logger.error(f"Local model initialization failed: {e}")
             return False

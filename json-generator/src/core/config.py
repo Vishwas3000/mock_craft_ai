@@ -3,7 +3,8 @@
 import os
 from pathlib import Path
 from typing import Optional, Dict, Any
-from pydantic import BaseSettings, Field, validator
+from pydantic_settings import BaseSettings
+from pydantic import Field, validator
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -20,7 +21,7 @@ class LLMConfig(BaseSettings):
     
     # Ollama Configuration
     ollama_host: str = Field("http://localhost:11434", env="OLLAMA_HOST")
-    ollama_model: str = Field("llama3:latest", env="OLLAMA_MODEL")
+    ollama_model: str = Field("llama3.1:8b", env="OLLAMA_MODEL")
     ollama_timeout: int = Field(120, env="OLLAMA_TIMEOUT")
     
     # Local Model Configuration
@@ -48,9 +49,9 @@ class AppConfig(BaseSettings):
     
     # Paths
     project_root: Path = Path(__file__).parent.parent.parent
-    models_dir: Path = Field(None)
-    data_dir: Path = Field(None)
-    cache_dir: Path = Field(None)
+    models_dir: Optional[Path] = None
+    data_dir: Optional[Path] = None
+    cache_dir: Optional[Path] = None
     
     # Feature flags
     enable_web_search: bool = Field(True, env="ENABLE_WEB_SEARCH")

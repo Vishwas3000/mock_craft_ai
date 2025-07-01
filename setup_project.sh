@@ -66,7 +66,7 @@ ANTHROPIC_API_KEY=your-anthropic-api-key-here
 
 # Ollama Configuration
 OLLAMA_HOST=http://localhost:11434
-OLLAMA_MODEL=llama3:latest
+OLLAMA_MODEL=llama3.1:8b
 
 # Local Model Configuration
 LOCAL_MODEL_PATH=./models/llama-2-7b-chat.gguf
