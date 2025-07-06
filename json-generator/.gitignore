@@ -22,6 +22,10 @@ data/cache/
 logs/
 *.log
 
+# Generated outputs
+outputs/
+outputs/*
+
 # Testing
 .coverage
 htmlcov/
