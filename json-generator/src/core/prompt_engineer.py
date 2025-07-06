@@ -90,7 +90,7 @@ class PromptEngineer:
                 }
             ],
             "general": [
-                {"id": "123", "name": "Example", "value": 100, "active": True}
+                {"id": "550e8400-e29b-41d4-a716-446655440000", "name": "Example", "value": 100, "active": True}
             ]
         }
     
@@ -102,7 +102,7 @@ class PromptEngineer:
             PatternType.URL: "valid URLs starting with https://",
             PatternType.DATE: "dates in ISO format: YYYY-MM-DD",
             PatternType.DATETIME: "datetime in ISO format: YYYY-MM-DDTHH:MM:SSZ",
-            PatternType.UUID: "valid UUID v4 format",
+            PatternType.UUID: "valid UUID v4 format (e.g., 550e8400-e29b-41d4-a716-446655440000)",
             PatternType.CURRENCY: "currency values with 2 decimal places",
             PatternType.PERCENTAGE: "percentage values between 0 and 100",
             PatternType.NAME: "realistic person names",
@@ -408,6 +408,9 @@ Following all the above guidelines:"""
         if any(f.pattern_type == PatternType.NAME for f in analysis.fields.values()):
             instructions.append("Use diverse, culturally appropriate names")
         
+        if any(f.pattern_type == PatternType.UUID for f in analysis.fields.values()):
+            instructions.append("For UUID fields, generate proper UUID v4 format: 8-4-4-4-12 hexadecimal characters (e.g., 550e8400-e29b-41d4-a716-446655440000)")
+        
         return instructions
     
     def _build_few_shot_prompt(
@@ -574,8 +577,12 @@ Provide a validation report with any issues found."""
         # Select optimal strategies based on complexity and context
         strategies = self._select_optimal_strategies(analysis, context, count)
         
-        # Build strategy components
-        strategy_components = {}
+        # Build strategy components with defaults for missing ones
+        strategy_components = {
+            "cot_analysis": "No detailed analysis available.",
+            "few_shot_examples": "No specific examples available.",
+            "structured_specs": "No structured specifications available."
+        }
         
         if PromptStrategy.CHAIN_OF_THOUGHT in strategies:
             strategy_components["cot_analysis"] = self._build_cot_analysis_component(

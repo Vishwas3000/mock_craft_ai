@@ -326,11 +326,12 @@ Return only the corrected JSON data."""
             result = await self.generate(request)
             attempts.append(result)
             
-            if result.success and result.validation_result.score > 0.8:
+            if result.success and result.validation_result and result.validation_result.score > 0.8:
                 console.print(f"[green]✓ Success with score: {result.validation_result.score:.2f}[/green]")
                 return result
             
-            console.print(f"[yellow]Score: {result.validation_result.score:.2f}, retrying...[/yellow]")
+            score = result.validation_result.score if result.validation_result else 0.0
+            console.print(f"[yellow]Score: {score:.2f}, retrying...[/yellow]")
         
         # Return best attempt
         best_attempt = max(attempts, key=lambda x: x.validation_result.score if x.validation_result else 0)

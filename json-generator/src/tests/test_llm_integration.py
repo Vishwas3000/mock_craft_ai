@@ -3,6 +3,7 @@
 import pytest
 import asyncio
 import os
+import sys
 from pathlib import Path
 
 from src.core.llm_manager import LLMManager, ModelPriority

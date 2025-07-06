@@ -420,19 +420,43 @@ class OutputValidator:
         
         # String constraints
         if isinstance(value, str):
-            if constraints.min_length is not None and len(value) < constraints.min_length:
-                errors.append(
-                    f"Record {record_index}: Field '{field_name}' length {len(value)} "
-                    f"is below minimum {constraints.min_length}"
-                )
-                score *= 0.9
-                
-            if constraints.max_length is not None and len(value) > constraints.max_length:
-                errors.append(
-                    f"Record {record_index}: Field '{field_name}' length {len(value)} "
-                    f"exceeds maximum {constraints.max_length}"
-                )
-                score *= 0.9
+            # Check if this is a UUID field (by name or pattern)
+            is_uuid_field = (
+                'id' in field_name.lower() or 
+                'uuid' in field_name.lower() or
+                'guid' in field_name.lower()
+            )
+            
+            # For UUID fields in lenient mode, be more flexible with length
+            if is_uuid_field and level == ValidationLevel.LENIENT:
+                # Accept UUIDs that are close to the expected length (32-36 chars)
+                if constraints.min_length is not None and len(value) < 32:
+                    errors.append(
+                        f"Record {record_index}: Field '{field_name}' length {len(value)} "
+                        f"is too short for UUID (minimum 32)"
+                    )
+                    score *= 0.9
+                elif constraints.max_length is not None and len(value) > 36:
+                    errors.append(
+                        f"Record {record_index}: Field '{field_name}' length {len(value)} "
+                        f"is too long for UUID (maximum 36)"
+                    )
+                    score *= 0.9
+            else:
+                # Standard length validation for non-UUID fields
+                if constraints.min_length is not None and len(value) < constraints.min_length:
+                    errors.append(
+                        f"Record {record_index}: Field '{field_name}' length {len(value)} "
+                        f"is below minimum {constraints.min_length}"
+                    )
+                    score *= 0.9
+                    
+                if constraints.max_length is not None and len(value) > constraints.max_length:
+                    errors.append(
+                        f"Record {record_index}: Field '{field_name}' length {len(value)} "
+                        f"exceeds maximum {constraints.max_length}"
+                    )
+                    score *= 0.9
         
         # Enum constraints
         if constraints.enum_values and value not in constraints.enum_values:

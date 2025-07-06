@@ -1,0 +1,4 @@
+currently the generation engine takes in as a json schema and a context.
+    i want to add a layer for user input to catagorixing the data.
+go throught the project and list out the flow
+implement verbose for test to should the output of the test
