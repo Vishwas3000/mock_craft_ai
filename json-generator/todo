@@ -2,3 +2,45 @@ currently the generation engine takes in as a json schema and a context.
     i want to add a layer for user input to catagorixing the data.
 go throught the project and list out the flow
 implement verbose for test to should the output of the test
+
+Systems to work on:
+    - error logger 
+    - prompting 
+        - when failing to generate a schema, it should try to generate a schema with a different strategy
+    - Validation
+    - data that can be entered with generation should not be done by LLM
+        x Like UUID
+        - Date
+        - Time
+        - Email
+        - Phone Number
+    - 
+
+Failing cases:
+    - generating a schema with a uuid field
+    - generating 
+
+Key take away for now:
+    - Single Strategy is most reliable
+        - when generation is failing there should be proper error handling and prompt it back to the system
+    -  Multi-Strategy and Adaptive Approaches Struggle with Complex Schemas
+        - For complex schemas, multi-strategy and adaptive approaches often result in:
+            - Missing required fields (e.g., "brand", "specifications", "seller", etc.)
+            - Incorrect field types or structures (e.g., "productId" too short or too long for UUID)
+            - Partial or incomplete records (only 1 record generated when 3 were requested)
+            - The LLM sometimes generates plausible but structurally incorrect data, especially for nested objects and arrays.
+    -  Adaptive Retry Logic
+        - Switch Strategies on Failure: If a strategy fails (e.g., missing fields), automatically switch to a more explicit or structured strategy.
+        - Incremental Generation: For large or complex schemas, generate data in smaller chunks or field-by-field, then assemble.
+    -  Validation Feedback Loop
+        - Incorporate Validation Feedback: Use validation errors to refine prompts or retry with corrections.
+        - User-Configurable Strictness: Allow users to set validation strictness per field or schema.
+
+
+Summary Table
+    - Area	Current Issue/Observation	Optimization Suggestion
+    - Prompt Engineering	LLM misses fields in complex schemas	Add explicit field checklists, more examples
+    - Validation	UUID/field length issues	Lenient validation, auto-correct UUIDs
+    - Strategy Selection	Multi-strategy not always effective	Adaptive retry with more explicit strategies
+    - Performance	Slow for large/complex schemas	Batch/async generation, parallelism
+    - Error Handling	Good error logs, but can be improved	Add more context, build metrics dashboard

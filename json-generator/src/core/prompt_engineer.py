@@ -10,6 +10,7 @@ from langchain.prompts.example_selector import SemanticSimilarityExampleSelector
 from langchain.embeddings import OpenAIEmbeddings
 
 from .schema_analyzer import SchemaAnalysis, FieldAnalysis, DataType, PatternType
+from .uuid_processor import get_uuid_instructions, detect_uuid_fields
 
 class PromptStrategy(Enum):
     """Different prompt strategies for generation"""
@@ -353,6 +354,11 @@ Following all the above guidelines:"""
             "Maintain consistency within each record"
         ]
         
+        # Add UUID-specific constraints
+        uuid_instructions = get_uuid_instructions()
+        if uuid_instructions.strip():
+            constraints.append(uuid_instructions.strip())
+        
         # Add specific constraints
         for field_name, field_analysis in analysis.fields.items():
             if field_analysis.constraints.min_value is not None:
@@ -408,8 +414,7 @@ Following all the above guidelines:"""
         if any(f.pattern_type == PatternType.NAME for f in analysis.fields.values()):
             instructions.append("Use diverse, culturally appropriate names")
         
-        if any(f.pattern_type == PatternType.UUID for f in analysis.fields.values()):
-            instructions.append("For UUID fields, generate proper UUID v4 format: 8-4-4-4-12 hexadecimal characters (e.g., 550e8400-e29b-41d4-a716-446655440000)")
+        # UUID instructions are handled in constraints section
         
         return instructions
     

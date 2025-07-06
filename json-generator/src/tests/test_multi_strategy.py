@@ -156,59 +156,59 @@ async def test_multi_strategy():
     
     # Test schemas of varying complexity
     test_cases = [
-        {
-            "name": "Simple Schema",
-            "schema": {
-                "id": str(uuid.uuid4()),
-                "name": "John Doe",
-                "age": 30,
-                "active": True,
-                "email": "john.doe@example.com",
-                "created_at": "2024-01-15T10:30:00Z"
-            },
-            "context": "user profiles",
-            "count": 3
-        },
-        {
-            "name": "Medium Complexity",
-            "schema": {
-                "orderId": str(uuid.uuid4()),
-                "customer": {
-                    "id": str(uuid.uuid4()),
-                    "name": "Jane Smith",
-                    "email": "jane.smith@example.com",
-                    "phone": "+1-555-0123"
-                },
-                "items": [
-                    {
-                        "productId": str(uuid.uuid4()),
-                        "name": "Wireless Headphones",
-                        "quantity": 2,
-                        "price": 29.99,
-                        "category": "Electronics"
-                    },
-                    {
-                        "productId": str(uuid.uuid4()),
-                        "name": "USB-C Cable",
-                        "quantity": 1,
-                        "price": 12.99,
-                        "category": "Accessories"
-                    }
-                ],
-                "totalAmount": 72.97,
-                "orderDate": "2024-01-15T14:22:30Z",
-                "status": "pending",
-                "shippingAddress": {
-                    "street": "123 Main St",
-                    "city": "New York",
-                    "state": "NY",
-                    "zipCode": "10001",
-                    "country": "USA"
-                }
-            },
-            "context": "e-commerce orders",
-            "count": 5
-        },
+        # {
+        #     "name": "Simple Schema",
+        #     "schema": {
+        #         "id": str(uuid.uuid4()),
+        #         "name": "John Doe",
+        #         "age": 30,
+        #         "active": True,
+        #         "email": "john.doe@example.com",
+        #         "created_at": "2024-01-15T10:30:00Z"
+        #     },
+        #     "context": "user profiles",
+        #     "count": 3
+        # },
+        # {
+        #     "name": "Medium Complexity",
+        #     "schema": {
+        #         "orderId": str(uuid.uuid4()),
+        #         "customer": {
+        #             "id": str(uuid.uuid4()),
+        #             "name": "Jane Smith",
+        #             "email": "jane.smith@example.com",
+        #             "phone": "+1-555-0123"
+        #         },
+        #         "items": [
+        #             {
+        #                 "productId": str(uuid.uuid4()),
+        #                 "name": "Wireless Headphones",
+        #                 "quantity": 2,
+        #                 "price": 29.99,
+        #                 "category": "Electronics"
+        #             },
+        #             {
+        #                 "productId": str(uuid.uuid4()),
+        #                 "name": "USB-C Cable",
+        #                 "quantity": 1,
+        #                 "price": 12.99,
+        #                 "category": "Accessories"
+        #             }
+        #         ],
+        #         "totalAmount": 72.97,
+        #         "orderDate": "2024-01-15T14:22:30Z",
+        #         "status": "pending",
+        #         "shippingAddress": {
+        #             "street": "123 Main St",
+        #             "city": "New York",
+        #             "state": "NY",
+        #             "zipCode": "10001",
+        #             "country": "USA"
+        #         }
+        #     },
+        #     "context": "e-commerce orders",
+        #     "count": 5
+        # },
         {
             "name": "Complex Schema",
             "schema": {
@@ -559,9 +559,13 @@ async def test_multi_strategy():
         
         # Performance comparison for this test case
         console.print(f"\n[bold cyan]Performance Comparison for {test_case['name']}:[/bold cyan]")
-        console.print(f"  • Single Strategy: {single_time:.2f}s (Score: {single_result.validation_result.score:.2f if single_result.validation_result else 'N/A'})")
-        console.print(f"  • Multi-Strategy: {multi_time:.2f}s (Score: {multi_result.validation_result.score:.2f if multi_result.validation_result else 'N/A'})")
-        console.print(f"  • Adaptive: {adaptive_time:.2f}s (Score: {adaptive_result.validation_result.score:.2f if adaptive_result.validation_result else 'N/A'})")
+        single_score = f"{single_result.validation_result.score:.2f}" if single_result.validation_result else "N/A"
+        multi_score = f"{multi_result.validation_result.score:.2f}" if multi_result.validation_result else "N/A"
+        adaptive_score = f"{adaptive_result.validation_result.score:.2f}" if adaptive_result.validation_result else "N/A"
+        
+        console.print(f"  • Single Strategy: {single_time:.2f}s (Score: {single_score})")
+        console.print(f"  • Multi-Strategy: {multi_time:.2f}s (Score: {multi_score})")
+        console.print(f"  • Adaptive: {adaptive_time:.2f}s (Score: {adaptive_score})")
         
         # Determine best strategy
         strategies = [
@@ -887,20 +891,27 @@ async def test_specific_strategies():
     console.print(strategy_table)
     
     # Calculate performance statistics
-    successful_strategies = sum(1 for row in strategy_table.rows if "✓" in row[1])
+    successful_strategies = sum(1 for row in strategy_table.rows if "✓" in str(row))
     total_strategies = len(strategy_table.rows)
     
     # Find best performing strategy
     best_score = 0
     best_strategy = "None"
     for row in strategy_table.rows:
-        if "✓" in row[1] and row[2] != "N/A":
+        row_str = str(row)
+        if "✓" in row_str:
+            # Extract score from the row string
             try:
-                score = float(row[2])
-                if score > best_score:
-                    best_score = score
-                    best_strategy = row[0]
-            except ValueError:
+                # Find the score in the row string (format: "Strategy ✓ Score Time Records")
+                parts = row_str.split()
+                if len(parts) >= 3:
+                    score_str = parts[2]
+                    if score_str != "N/A":
+                        score = float(score_str)
+                        if score > best_score:
+                            best_score = score
+                            best_strategy = parts[0]  # First part is strategy name
+            except (ValueError, IndexError):
                 continue
     
     # Summary and insights

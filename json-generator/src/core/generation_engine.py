@@ -15,6 +15,7 @@ from .prompt_engineer import PromptEngineer, PromptStrategy
 from .output_parser import OutputParser, OutputValidator, ValidationLevel, ValidationResult
 from .llm_manager import LLMManager
 from .base_llm import GenerationConfig
+from .uuid_processor import replace_uuid_placeholders, process_uuids
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -64,34 +65,32 @@ class JSONGenerationEngine:
         
         try:
             # Step 1: Analyze schema
-            with console.status("[bold blue]Analyzing schema..."):
-                analysis = self.schema_analyzer.analyze(request.schema, request.context)
-                console.print(f"[green]✓[/green] Schema analyzed: {analysis.total_fields} fields, "
-                            f"complexity: {analysis.complexity_score:.2f}")
+            analysis = self.schema_analyzer.analyze(request.schema, request.context)
+            console.print(f"[green]✓[/green] Schema analyzed: {analysis.total_fields} fields, "
+                        f"complexity: {analysis.complexity_score:.2f}")
             
             # Step 2: Build prompt
-            with console.status("[bold blue]Building optimized prompt..."):
-                # Determine if we should use multi-strategy based on complexity
-                use_multi = request.use_multi_strategy or (
-                    analysis.complexity_score > 0.5 and request.count > 5
-                )
-                
-                prompt = self.prompt_engineer.build_prompt(
-                    schema=request.schema,
-                    analysis=analysis,
-                    context=request.context,
-                    count=request.count,
-                    strategy=request.strategy,
-                    include_examples=request.include_examples,
-                    use_multi_strategy=use_multi
-                )
-                
-                # Optimize for selected model
-                model_type = request.model or self.llm_manager.default_model
-                prompt = self.prompt_engineer.optimize_for_model(prompt, model_type)
-                
-                strategy_desc = "multi-strategy" if use_multi else request.strategy.value
-                console.print(f"[green]✓[/green] Prompt optimized for {model_type} using {strategy_desc}")
+            # Determine if we should use multi-strategy based on complexity
+            use_multi = request.use_multi_strategy or (
+                analysis.complexity_score > 0.5 and request.count > 5
+            )
+            
+            prompt = self.prompt_engineer.build_prompt(
+                schema=request.schema,
+                analysis=analysis,
+                context=request.context,
+                count=request.count,
+                strategy=request.strategy,
+                include_examples=request.include_examples,
+                use_multi_strategy=use_multi
+            )
+            
+            # Optimize for selected model
+            model_type = request.model or self.llm_manager.default_model
+            prompt = self.prompt_engineer.optimize_for_model(prompt, model_type)
+            
+            strategy_desc = "multi-strategy" if use_multi else request.strategy.value
+            console.print(f"[green]✓[/green] Prompt optimized for {model_type} using {strategy_desc}")
             
             # Step 3: Generate data
             generated_data = await self._generate_with_mode(
@@ -110,45 +109,55 @@ class JSONGenerationEngine:
                 )
             
             # Step 4: Parse output
-            with console.status("[bold blue]Parsing generated data..."):
-                parse_result = self.output_parser.parse(generated_data, request.count)
-                
-                if not parse_result.success:
-                    console.print(f"[yellow]⚠[/yellow] Parsing failed, attempting recovery...")
-                    
-                    # Try with different prompt strategy if multi-strategy enabled
-                    if request.use_multi_strategy and request.max_retries > 0:
-                        request.max_retries -= 1
-                        request.strategy = PromptStrategy.STRUCTURED  # Try more explicit
-                        return await self.generate(request)
-                    
-                    return GenerationResult(
-                        success=False,
-                        data=None,
-                        validation_result=None,
-                        metadata={
-                            "mode": request.mode.value,
-                            "parse_errors": parse_result.errors
-                        },
-                        errors=parse_result.errors
-                    )
-                
-                console.print(f"[green]✓[/green] Successfully parsed {len(parse_result.data) if isinstance(parse_result.data, list) else 1} records")
+            parse_result = self.output_parser.parse(generated_data, request.count)
             
-            # Step 5: Validate data
+            if not parse_result.success:
+                console.print(f"[yellow]⚠[/yellow] Parsing failed, attempting recovery...")
+                
+                # Try with different prompt strategy if multi-strategy enabled
+                if request.use_multi_strategy and request.max_retries > 0:
+                    request.max_retries -= 1
+                    request.strategy = PromptStrategy.STRUCTURED  # Try more explicit
+                    return await self.generate(request)
+                
+                return GenerationResult(
+                    success=False,
+                    data=None,
+                    validation_result=None,
+                    metadata={
+                        "mode": request.mode.value,
+                        "parse_errors": parse_result.errors
+                    },
+                    errors=parse_result.errors
+                )
+            
+            console.print(f"[green]✓[/green] Successfully parsed {len(parse_result.data) if isinstance(parse_result.data, list) else 1} records")
+            
+            # Step 5: Process UUIDs (replace placeholders and fix invalid UUIDs)
+            console.print("[blue]Processing UUIDs...[/blue]")
+            
+            # First replace any UUID_PLACEHOLDER values
+            processed_data = replace_uuid_placeholders(parse_result.data)
+            
+            # Then process any invalid or missing UUIDs
+            processed_data = process_uuids(processed_data, preserve_existing=False)
+            
+            console.print("[green]✓[/green] UUID processing completed")
+            
+            # Step 6: Validate data
             validator = self._get_validator(analysis)
-            validation_result = validator.validate(parse_result.data, request.validation_level)
+            validation_result = validator.validate(processed_data, request.validation_level)
             
             if not validation_result.is_valid and request.validation_level != ValidationLevel.LENIENT:
                 console.print(f"[yellow]⚠[/yellow] Validation issues found, attempting to fix...")
                 
                 # Try to fix common issues
-                fixed_data = validator.fix_common_issues(parse_result.data)
+                fixed_data = validator.fix_common_issues(processed_data)
                 re_validation = validator.validate(fixed_data, request.validation_level)
                 
                 if re_validation.is_valid:
                     console.print("[green]✓[/green] Fixed validation issues")
-                    parse_result.data = fixed_data
+                    processed_data = fixed_data
                     validation_result = re_validation
                 elif request.use_multi_strategy and request.max_retries > 0:
                     # Retry with different strategy
@@ -158,7 +167,7 @@ class JSONGenerationEngine:
                     return await self.generate(request)
             
             # Prepare final result
-            data = parse_result.data if isinstance(parse_result.data, list) else [parse_result.data]
+            data = processed_data if isinstance(processed_data, list) else [processed_data]
             
             return GenerationResult(
                 success=validation_result.score > 0.5,
