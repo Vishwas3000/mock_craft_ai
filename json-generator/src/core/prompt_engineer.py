@@ -10,7 +10,7 @@ from langchain.prompts.example_selector import SemanticSimilarityExampleSelector
 from langchain.embeddings import OpenAIEmbeddings
 
 from .schema_analyzer import SchemaAnalysis, FieldAnalysis, DataType, PatternType
-from .uuid_processor import get_uuid_instructions, detect_uuid_fields
+from src.utils.processing.uuid_processor import get_uuid_instructions, detect_uuid_fields
 
 class PromptStrategy(Enum):
     """Different prompt strategies for generation"""

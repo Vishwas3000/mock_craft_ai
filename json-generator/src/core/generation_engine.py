@@ -15,7 +15,7 @@ from .prompt_engineer import PromptEngineer, PromptStrategy
 from .output_parser import OutputParser, OutputValidator, ValidationLevel, ValidationResult
 from .llm_manager import LLMManager
 from .base_llm import GenerationConfig
-from .uuid_processor import replace_uuid_placeholders, process_uuids
+from src.utils.processing.uuid_processor import replace_uuid_placeholders, process_uuids
 
 logger = logging.getLogger(__name__)
 console = Console()

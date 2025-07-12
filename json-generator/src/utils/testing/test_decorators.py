@@ -12,7 +12,7 @@ USAGE:
 ------
 1. Import the decorators in your test or experiment files:
 
-    from src.core.test_decorators import save_test_output, save_generation_output, save_validation_output, save_performance_output, with_output_summary
+    from src.utils.testing.test_decorators import save_test_output, save_generation_output, save_validation_output, save_performance_output, with_output_summary
 
 2. Decorate your test functions:
 
@@ -55,14 +55,14 @@ print(f"DEBUG: sys.path = {sys.path[:3]}...")  # Show first 3 paths
 print(f"DEBUG: Current working directory = {sys.path[0]}")
 
 try:
-    from .output_manager import output_manager, OutputType
+    from ..output.output_manager import output_manager, OutputType
     print("DEBUG: Relative import SUCCESS")
 except ImportError as e:
     print(f"DEBUG: Relative import FAILED: {e}")
     # Fallback for direct execution
     import sys
     sys.path.append('/Users/sudeepsharma/Documents/GitHub/mock_craft_ai/json-generator')
-    from src.core.output_manager import output_manager, OutputType
+    from src.utils.output.output_manager import output_manager, OutputType
     print("DEBUG: Absolute import SUCCESS")
 
 console = Console()

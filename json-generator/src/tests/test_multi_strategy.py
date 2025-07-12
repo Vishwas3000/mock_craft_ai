@@ -121,8 +121,8 @@ from src.core.generation_engine import JSONGenerationEngine, GenerationRequest, 
 from src.core.schema_analyzer import SchemaAnalyzer
 from src.core.prompt_engineer import PromptStrategy
 from src.core.output_parser import ValidationLevel
-from src.core.output_manager import output_manager
-from src.core.test_decorators import save_generation_output, with_output_summary
+from src.utils.output.output_manager import output_manager
+from src.utils.testing.test_decorators import save_generation_output, with_output_summary
 from rich.console import Console
 from rich.table import Table
 

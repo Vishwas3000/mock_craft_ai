@@ -22,13 +22,13 @@ from typing import Callable, Any, Dict, Optional, List
 from rich.console import Console
 
 try:
-    from .feedback_system import feedback_system, GenerationPhase, ErrorSeverity
-    from .output_manager import output_manager
+    from ...core.feedback_system import feedback_system, GenerationPhase, ErrorSeverity
+    from ..output.output_manager import output_manager
 except ImportError:
     # Fallback for direct execution
     sys.path.append('/Users/sudeepsharma/Documents/GitHub/mock_craft_ai/json-generator')
     from src.core.feedback_system import feedback_system, GenerationPhase, ErrorSeverity
-    from src.core.output_manager import output_manager
+    from src.utils.output.output_manager import output_manager
 
 console = Console()
 

@@ -43,7 +43,7 @@ The feedback system is already integrated into the project. No additional instal
 ### Basic Usage with Decorators
 
 ```python
-from src.core.enhanced_test_decorators import comprehensive_test_tracking
+from src.utils.testing.enhanced_test_decorators import comprehensive_test_tracking
 
 @comprehensive_test_tracking("my_test")
 async def my_test_function():
@@ -56,10 +56,10 @@ async def my_test_function():
 
 ```python
 from src.core.feedback_integration import create_feedback_engine
-from src.core.generation_engine import GenerationEngine, GenerationRequest
+from src.core.generation_engine import JSONGenerationEngine, GenerationRequest
 
 # Create feedback-integrated engine
-engine = GenerationEngine(llm_manager, schema_analyzer, config)
+engine = JSONGenerationEngine(llm_manager)
 feedback_engine = create_feedback_engine(engine)
 
 # Generate with automatic feedback tracking

@@ -46,8 +46,8 @@ from rich.tree import Tree
 from rich.text import Text
 
 # Core system imports
-from src.core.generation_engine import GenerationEngine
-from src.core.config import Config
+from src.core.generation_engine import JSONGenerationEngine, GenerationRequest
+from src.core.config import settings
 from src.core.llm_manager import LLMManager
 from src.core.schema_analyzer import SchemaAnalyzer
 from src.core.prompt_engineer import PromptStrategy
@@ -55,7 +55,7 @@ from src.core.output_parser import ValidationLevel
 
 # Enhanced feedback system imports
 from src.core.feedback_system import feedback_system, GenerationPhase, ErrorSeverity, ErrorCategory
-from src.core.enhanced_test_decorators import (
+from src.utils.testing.enhanced_test_decorators import (
     comprehensive_test_tracking,
     generation_test_tracking,
     performance_test_tracking,
@@ -74,13 +74,10 @@ class TestMultiStrategyEnhanced:
         console.print("\n[bold blue]🚀 Initializing Enhanced Test Suite[/bold blue]")
         
         # Initialize core components
-        cls.config = Config()
-        cls.llm_manager = LLMManager(cls.config)
+        cls.llm_manager = LLMManager()
         cls.schema_analyzer = SchemaAnalyzer()
-        cls.generation_engine = GenerationEngine(
-            llm_manager=cls.llm_manager,
-            schema_analyzer=cls.schema_analyzer,
-            config=cls.config
+        cls.generation_engine = JSONGenerationEngine(
+            llm_manager=cls.llm_manager
         )
         
         # Test schemas
@@ -154,7 +151,7 @@ class TestMultiStrategyEnhanced:
             for strategy in strategies:
                 console.print(f"[yellow]Testing strategy: {strategy.value}[/yellow]")
                 
-                request = self.generation_engine.GenerationRequest(
+                request = GenerationRequest(
                     schema=self.simple_schema,
                     count=3,
                     context="Simple user profile for testing",
@@ -203,7 +200,7 @@ class TestMultiStrategyEnhanced:
         
         try:
             # Test multi-strategy approach
-            request = self.generation_engine.GenerationRequest(
+            request = GenerationRequest(
                 schema=self.complex_schema,
                 count=2,
                 context="Complex user profile with nested data and relationships",
@@ -253,7 +250,7 @@ class TestMultiStrategyEnhanced:
             for count in record_counts:
                 console.print(f"[yellow]Testing with {count} records...[/yellow]")
                 
-                request = self.generation_engine.GenerationRequest(
+                request = GenerationRequest(
                     schema=self.simple_schema,
                     count=count,
                     context="Performance testing",

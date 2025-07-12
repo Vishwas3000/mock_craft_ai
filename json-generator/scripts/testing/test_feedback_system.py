@@ -38,7 +38,7 @@ from core.output_parser import ValidationLevel
 # Import feedback system
 from core.feedback_system import feedback_system
 from core.feedback_integration import create_feedback_engine, feedback_tracking
-from core.enhanced_test_decorators import comprehensive_test_tracking
+from utils.testing.enhanced_test_decorators import comprehensive_test_tracking
 
 console = Console()
 
